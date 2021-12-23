@@ -1,0 +1,13 @@
+New client: 127.0.0.1:57608
+[ telegram bot ]: connected
+New client: 127.0.0.1:33354
+[ telegram bot ]: connected
+New client: 127.0.0.1:33370
+[127.0.0.1:33370]: test
+[ test (127.0.0.1:33370)]: 6932
+[ test (127.0.0.1:33370)]: hello from echoclient
+[ telegram bot ]: hey all
+[ test (127.0.0.1:33370)]: hey are you in telegram?
+[ telegram bot ]: yeah!
+[ telegram bot ]: check logs on B site
+[ test (127.0.0.1:33370)]: ok

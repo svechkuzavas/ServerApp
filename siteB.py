@@ -1,4 +1,3 @@
-import json
 import os
 import socket
 import datetime
@@ -42,55 +41,36 @@ class HTTPServer:
     def parse_request(self, conn):
         rfile = conn.makefile('r')
         raw = rfile.readline(64*1024 + 1).split()
-        data = ''
-        print(raw)
-        filename = '/register' if raw[1] == '/' else raw[1]
-        if '/register' in raw[1].split('?'):
-            name, password = raw[1].split('?')[1].split('&')
-            name = name.split('=')[1]
-            password = password.split('=')[1]
-            data = f'<html><head><meta charset="UTF-8"></head><body>' \
-                   f'{self.register_user(name, password)}</body></html>'
-        else:
-            data = self.read_file(filename) if raw[1] != '/close' else 'Server closed'
+        filename = '/pin' if raw[1] == '/' else raw[1]
         return {
             'method': raw[0],
             'route': raw[1],
-            'data': data,
+            'data': self.read_file(filename) if raw[1] != '/close' else 'Server closed',
         }
 
     def read_file(self, route):
-        with open(os.path.join('static', 'html', f'{route[1:]}.html')) as f:
-            return ''.join(f.readlines())
+        resp = ''
+        with open(os.path.join('log.txt')) as f:
+            lines = f.readlines()
+            for line in lines:
+                resp += f"<p>{line}</p>"
+        return resp
 
     def send_response(self, conn, resp_body):
         response = f"""HTTP/1.1 200 OK
 Server: KirillZaycevWebServer v0.0.1
 Content-type: text/html
-Connection: keep-alive
+Connection: close
 Date: {datetime.date.today()}
 Content-length: {len(resp_body)}
 
-{resp_body}
-"""
-        conn.send(response.encode())
+{resp_body}"""
+        conn.send(response.encode('utf-8'))
 
     def send_error(self, conn, err):
         print(err)
 
-    def register_user(self, username, password):
-        users = {}
-        with open('users.json', 'r') as f:
-            users = json.loads(f.read())
-            if users.get(username):
-                return 'User already exists'
-            else:
-                users[username] = [password, False, -1, -1, False, -1]
-                with open('users.json', 'w') as f:
-                    f.write(json.dumps(users))
-                return 'Success'
-
 
 if __name__ == '__main__':
-    server = HTTPServer(config.A_PORT)
+    server = HTTPServer(config.B_PORT)
     server.run()

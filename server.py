@@ -10,6 +10,15 @@ max = 100
 list_thread = []
 list_conn = []
 
+
+def logging(*data):
+    data = ' '.join((str(item) for item in data))
+    with threading.Lock():
+        print(data)
+        with open("log.txt", 'a+') as file:
+            file.write(data + '\n')
+
+
 class ClientSock(Thread):
 
     def __init__(self, name, connector, addr):
@@ -24,28 +33,41 @@ class ClientSock(Thread):
     def run(self):
         self.connector.send("Введите ваш логин: ".encode())
         data = self.connector.recv(1024)
-        print(f"[{self.addr[0]}:{self.addr[1]}]: {data.decode()}")
-        self.username = data.decode()
-        registration = self.check_registered(self.username)
-        if registration == config.EXISTS_NOT_CONFIRMED:
-            self.connector.send("Пользователь найден. Введите пин с сайта С: ".encode())
-            generated_pin = self.generate_pin(self.username)
-            input_pin = self.connector.recv(1024).decode()
-            print(f"[ {self.username} ({self.addr[0]}:{self.addr[1]})]: {input_pin}")
-            if str(input_pin) == str(generated_pin):
-                self.connector.send("Ок. Вы авторизованы\n".encode())
-                self.confirm_pin(self.username)
+        if data.decode().startswith('telegram'):
+            list_conn.append(self.connector)
+            userinfo, message = data.decode().split('/')
+            self.username = userinfo.split('.')[1]
+            broadcast(self.connector, f"[ telegram {self.username} ]: {message}")
+            logging(f"[ telegram {self.username} ]: {message}")
+            while True:
+                data = self.connector.recv(1024)
+                userinfo, message = data.decode().split('/')
+                username = userinfo.split('.')[1]
+                broadcast(self.connector, f"[ telegram {username} ]: {message}")
+                logging(f"[ telegram {self.username} ]: {message}")
+        else:
+            logging(f"[{self.addr[0]}:{self.addr[1]}]: {data.decode()}")
+            self.username = data.decode()
+            registration = self.check_registered(self.username)
+            if registration == config.EXISTS_NOT_CONFIRMED:
+                self.connector.send("Пользователь найден. Введите пин с сайта С: ".encode())
+                generated_pin = self.generate_pin(self.username)
+                input_pin = self.connector.recv(1024).decode()
+                logging(f"[ {self.username} ({self.addr[0]}:{self.addr[1]})]: {input_pin}")
+                if str(input_pin) == str(generated_pin):
+                    self.connector.send("Ок. Вы авторизованы\n".encode())
+                    self.confirm_pin(self.username)
+                    list_conn.append(self.connector)
+                    self.messaging()
+                else:
+                    self.connector.send("Неправильный пин\n".encode())
+            elif registration == config.EXISTS_CONFIRMED:
+                self.connector.send("Пользователь найден. Пин подтвержден ранее\n".encode())
                 list_conn.append(self.connector)
                 self.messaging()
-            else:
-                self.connector.send("Неправильный пин\n".encode())
-        elif registration == config.EXISTS_CONFIRMED:
-            self.connector.send("Пользователь найден. Пин подтвержден ранее\n".encode())
-            list_conn.append(self.connector)
-            self.messaging()
-        elif registration == config.NOT_EXISTS:
-            self.connector.send("Пользователь не найден. Используйте А для регистрации\n".encode())
-            self.run()
+            elif registration == config.NOT_EXISTS:
+                self.connector.send("Пользователь не найден. Используйте А для регистрации\n".encode())
+                self.run()
 
     def messaging(self):
         while True:
@@ -53,7 +75,7 @@ class ClientSock(Thread):
             if not data:
                 break
             broadcast(self.connector, f"[ {self.username} ({self.addr[0]}:{self.addr[1]})]: {data}")
-            print(f"[ {self.username} ({self.addr[0]}:{self.addr[1]})]: {data}")
+            logging(f"[ {self.username} ({self.addr[0]}:{self.addr[1]})]: {data}")
 
     def check_registered(self, name):
         with open('users.json', 'r') as f:
@@ -92,7 +114,7 @@ sock.listen(4)
 
 while True:
     conn, addr = sock.accept()
-    print(f"Новый клиент: {addr[0]}:{addr[1]}")
+    logging(f"New client: {addr[0]}:{addr[1]}")
     thread = ClientSock(len(list_thread), conn, addr)
     list_thread.append(thread if len(list_thread) <= max else Exception)
     thread.start()

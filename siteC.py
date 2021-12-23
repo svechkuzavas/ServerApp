@@ -2,6 +2,8 @@ import os
 import socket
 import datetime
 
+import config
+
 
 class HTTPServer:
     def __init__(self, port):
@@ -66,5 +68,5 @@ Content-length: {len(resp_body)}
 
 
 if __name__ == '__main__':
-    server = HTTPServer(9100)
+    server = HTTPServer(config.C_PORT)
     server.run()
